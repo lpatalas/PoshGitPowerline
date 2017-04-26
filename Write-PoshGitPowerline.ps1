@@ -29,9 +29,38 @@ function GetBareOrGitDirSegment($status) {
     }
 }
 
+function GetRebaseProgress($operation) {
+    if ($operation -ilike 'REBASE') {
+        $gitDir = Get-GitDirectory
+        $rebaseInfoDir = ''
+
+        if ($operation -match 'REBASE-[im]') {
+            $rebaseInfoDir = "$gitDir\rebase-merge"
+        }
+        else {
+            $rebaseInfoDir = "$gitDir\rebase-apply"
+        }
+        
+        $current = Get-Content "$rebaseInfoDir\msgnum" -ErrorAction SilentlyContinue
+        $total = Get-Content "$gitDir\rebase-merge\end" -ErrorAction SilentlyContinue
+
+        if ($current -and $total) {
+            return "$current/$total"
+        }
+    }
+}
+
 function GetStateSegment($status) {
     if ($status.Branch -like '*|*') {
-        return NewSegment ($status.Branch -split '\|')[1] White Red
+        $operation = ($status.Branch -split '\|')[1]
+        if ($operation -ilike 'REBASE*') {
+            $progress = GetRebaseProgress $operation
+            if ($progress) {
+                $operation += " ($progress)"
+            }
+        }
+
+        return NewSegment $operation White Red
     }
 }
 
